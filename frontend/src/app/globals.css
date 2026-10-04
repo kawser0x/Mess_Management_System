@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
+@import "tailwindcss";
+@import "@heroui/styles/css"; 
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --font-roboto: 'Roboto', sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: 'Roboto', sans-serif;
+  --font-mono: 'Roboto', sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+*, ::before, ::after {
+  font-family: 'Roboto', sans-serif !important;
+}
+
+html, body, button, input, select, textarea {
+  font-family: 'Roboto', sans-serif !important;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
