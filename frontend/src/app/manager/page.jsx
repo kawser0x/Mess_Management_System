@@ -102,7 +102,7 @@ export default function ManagerPage() {
       color: "from-purple-500 to-pink-500",
       bgLight: "bg-purple-50 dark:bg-purple-500/10",
       textColor: "text-purple-500",
-      link: "/manager/settings", // Or a dedicated notices page if one exists
+      link: "/manager/notices",
     },
   ];
 

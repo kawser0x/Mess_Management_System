@@ -8,6 +8,8 @@ export default function FinancesManagementPage() {
   const [finances, setFinances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
@@ -77,22 +79,26 @@ export default function FinancesManagementPage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this record?")) return;
+  const confirmDelete = async () => {
+    if (!recordToDelete) return;
+    setIsDeleting(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiUrl}/api/finances/${id}`, {
+      const res = await fetch(`${apiUrl}/api/finances/${recordToDelete._id}`, {
         method: "DELETE",
       });
 
       if (res.ok) {
         toast.success("Record deleted.");
-        setFinances(finances.filter(f => f._id !== id));
+        setFinances(finances.filter(f => f._id !== recordToDelete._id));
       } else {
         toast.error("Failed to delete record.");
       }
     } catch (error) {
       toast.error("Error deleting record.");
+    } finally {
+      setIsDeleting(false);
+      setRecordToDelete(null);
     }
   };
 
@@ -263,7 +269,7 @@ export default function FinancesManagementPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <button
-                          onClick={() => handleDelete(record._id)}
+                          onClick={() => setRecordToDelete(record)}
                           className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -277,6 +283,38 @@ export default function FinancesManagementPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {recordToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200 p-6 text-center">
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Delete Record?</h3>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+              Are you sure you want to delete this <strong className="text-zinc-700 dark:text-zinc-300">{recordToDelete.type}</strong> record for <strong className="text-zinc-700 dark:text-zinc-300">৳{recordToDelete.amount}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setRecordToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-xl shadow-sm transition-colors disabled:opacity-70 flex items-center gap-2"
+              >
+                {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isDeleting ? "Deleting..." : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

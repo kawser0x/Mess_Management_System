@@ -47,6 +47,34 @@ async function run() {
       }
     });
 
+    app.put('/api/users/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        const { name, phone, image } = req.body;
+        
+        // Only include defined fields to avoid setting things to undefined
+        const updateFields = {};
+        if (name !== undefined) updateFields.name = name;
+        if (phone !== undefined) updateFields.phone = phone;
+        if (image !== undefined) updateFields.image = image;
+
+        let result = await usersCollection.updateOne(
+          { _id: id },
+          { $set: updateFields }
+        );
+
+        if (result.matchedCount === 0 && ObjectId.isValid(id)) {
+          result = await usersCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateFields }
+          );
+        }
+        res.json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     app.delete('/api/members/:id', async (req, res) => {
       try {
         const id = req.params.id;
