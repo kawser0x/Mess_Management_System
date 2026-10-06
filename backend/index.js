@@ -25,6 +25,7 @@ async function run() {
     const financesCollection = db.collection('finances');
     const noticesCollection = db.collection('notices');
     const reviewsCollection = db.collection('reviews');
+    const paymentsCollection = db.collection('payments');
 
     // ==========================================
     // USERS / MEMBERS ENDPOINTS
@@ -234,6 +235,42 @@ async function run() {
         let result = await financesCollection.deleteOne({ _id: id });
         if (result.deletedCount === 0 && ObjectId.isValid(id)) {
           result = await financesCollection.deleteOne({ _id: new ObjectId(id) });
+        }
+        res.json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // ==========================================
+    // PAYMENTS ENDPOINTS
+    // ==========================================
+    app.get('/api/payments', async (req, res) => {
+      try {
+        const payments = await paymentsCollection.find().sort({ date: -1 }).toArray();
+        res.json(payments);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    app.post('/api/payments', async (req, res) => {
+      try {
+        const newPayment = req.body;
+        newPayment.createdAt = new Date();
+        const result = await paymentsCollection.insertOne(newPayment);
+        res.status(201).json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    app.delete('/api/payments/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        let result = await paymentsCollection.deleteOne({ _id: new ObjectId(id) });
+        if (result.deletedCount === 0) {
+          result = await paymentsCollection.deleteOne({ _id: id });
         }
         res.json(result);
       } catch (error) {

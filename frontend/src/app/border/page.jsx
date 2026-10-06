@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
-import { Utensils, PieChart, IndianRupee, Bell, Loader2, Calendar } from "lucide-react";
+import { Utensils, PieChart, IndianRupee, Bell, Loader2, Calendar, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-toastify";
 
@@ -14,8 +14,9 @@ export default function BorderPage() {
     myMeals: 0,
     totalMessMeals: 0,
     totalExpenses: 0,
-    mealRate: 0,
     myMealCost: 0,
+    totalDeposit: 0,
+    currentBalance: 0,
   });
   const [notices, setNotices] = useState([]);
 
@@ -29,15 +30,17 @@ export default function BorderPage() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       
-      const [mealsRes, financesRes, noticesRes] = await Promise.all([
+      const [mealsRes, financesRes, noticesRes, paymentsRes] = await Promise.all([
         fetch(`${apiUrl}/api/meals`),
         fetch(`${apiUrl}/api/finances`),
         fetch(`${apiUrl}/api/notices`),
+        fetch(`${apiUrl}/api/payments`),
       ]);
 
       const meals = mealsRes.ok ? await mealsRes.json() : [];
       const finances = financesRes.ok ? await financesRes.json() : [];
       const noticesData = noticesRes.ok ? await noticesRes.json() : [];
+      const payments = paymentsRes.ok ? await paymentsRes.json() : [];
 
       setNotices(noticesData.slice(0, 3)); // Top 3 latest notices
 
@@ -62,9 +65,15 @@ export default function BorderPage() {
         .filter(f => f.type === "expense" || !f.type)
         .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
-      // Meal Rate
+      // Calculate Meal Rate
       const mealRate = totalMessMeals > 0 ? (totalExpenses / totalMessMeals) : 0;
       const myMealCost = myMeals * mealRate;
+
+      // Calculate Payments
+      const myPayments = payments.filter(p => p.memberId === session.user.id);
+      const totalDeposit = myPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+      
+      const currentBalance = totalDeposit - myMealCost;
 
       setStats({
         myMeals,
@@ -72,6 +81,8 @@ export default function BorderPage() {
         totalExpenses,
         mealRate,
         myMealCost,
+        totalDeposit,
+        currentBalance,
       });
 
     } catch (error) {
@@ -114,11 +125,22 @@ export default function BorderPage() {
               </p>
             </div>
           </div>
+          
+          <div className="hidden md:flex items-center gap-4 bg-white/5 backdrop-blur-sm border border-white/10 p-4 rounded-2xl max-w-sm ml-auto">
+            <div className="p-2 bg-amber-500/20 rounded-xl shrink-0">
+              <Sparkles className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-white/90 italic leading-snug">
+                "Good food ends with good talk. Enjoy your meals and have a great day ahead!"
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all group">
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 bg-blue-50 dark:bg-blue-500/10 text-blue-500 rounded-2xl group-hover:scale-110 transition-transform">
@@ -149,6 +171,16 @@ export default function BorderPage() {
           <h3 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">৳{stats.totalExpenses.toLocaleString()}</h3>
         </div>
 
+        <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all group">
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 rounded-2xl group-hover:scale-110 transition-transform">
+              <IndianRupee className="w-6 h-6" />
+            </div>
+          </div>
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Total Deposit</p>
+          <h3 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">৳{stats.totalDeposit.toFixed(2)}</h3>
+        </div>
+
         <div className="bg-gradient-to-br from-amber-400 to-amber-600 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all text-white relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-20 rounded-full blur-2xl -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500" />
           <div className="relative z-10 flex justify-between items-start mb-4">
@@ -159,6 +191,21 @@ export default function BorderPage() {
           <div className="relative z-10">
             <p className="text-sm font-medium text-amber-100">My Total Cost (Est.)</p>
             <h3 className="text-3xl font-bold mt-1">৳{stats.myMealCost.toFixed(2)}</h3>
+          </div>
+        </div>
+
+        <div className={`rounded-3xl p-6 shadow-sm hover:shadow-md transition-all text-white relative overflow-hidden group ${stats.currentBalance >= 0 ? 'bg-gradient-to-br from-emerald-400 to-emerald-600' : 'bg-gradient-to-br from-rose-400 to-rose-600'}`}>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-20 rounded-full blur-2xl -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500" />
+          <div className="relative z-10 flex justify-between items-start mb-4">
+            <div className="p-3 bg-white/20 rounded-2xl">
+              <IndianRupee className="w-6 h-6" />
+            </div>
+          </div>
+          <div className="relative z-10">
+            <p className="text-sm font-medium text-white/90">Current Balance</p>
+            <h3 className="text-3xl font-bold mt-1 flex items-center gap-2">
+              {stats.currentBalance >= 0 ? '+' : '-'} ৳{Math.abs(stats.currentBalance).toFixed(2)}
+            </h3>
           </div>
         </div>
       </div>
