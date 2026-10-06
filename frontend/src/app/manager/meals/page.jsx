@@ -44,7 +44,16 @@ export default function MealsManagementPage() {
         // Ensure all present members have an entry
         presentMembers.forEach(m => {
           if (!initialRecords[m._id]) {
-            initialRecords[m._id] = { breakfast: 0, lunch: 1, dinner: 1 }; // Default values
+            const defs = m.mealDefaults || {
+              breakfast: { active: true, count: 1 },
+              lunch: { active: true, count: 1 },
+              dinner: { active: true, count: 1 }
+            };
+            initialRecords[m._id] = { 
+              breakfast: defs.breakfast.active ? defs.breakfast.count : 0, 
+              lunch: defs.lunch.active ? defs.lunch.count : 0, 
+              dinner: defs.dinner.active ? defs.dinner.count : 0 
+            };
           }
         });
 
@@ -217,7 +226,10 @@ export default function MealsManagementPage() {
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-700 dark:to-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-300 font-bold text-xs">
                               {member.name?.charAt(0).toUpperCase() || "?"}
                             </div>
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">{member.name}</span>
+                            <div>
+                              <span className="font-medium text-zinc-900 dark:text-zinc-100 block">{member.name}</span>
+                              <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400">Room: {member.roomNo}</span>
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-center">
