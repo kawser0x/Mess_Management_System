@@ -47,6 +47,44 @@ async function run() {
       }
     });
 
+    app.delete('/api/members/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        // The id might be a string (Better Auth default) or ObjectId depending on adapter setup.
+        // Better Auth typically uses string IDs for MongoDB (like 'cuid' or 'uuid') unless explicitly configured.
+        // We will try deleting by string first, then ObjectId as fallback.
+        let result = await usersCollection.deleteOne({ _id: id });
+        if (result.deletedCount === 0 && ObjectId.isValid(id)) {
+          result = await usersCollection.deleteOne({ _id: new ObjectId(id) });
+        }
+        res.json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    app.put('/api/members/:id/status', async (req, res) => {
+      try {
+        const id = req.params.id;
+        const { status } = req.body; // 'present' or 'past'
+        
+        let result = await usersCollection.updateOne(
+          { _id: id },
+          { $set: { status: status || 'present' } }
+        );
+
+        if (result.matchedCount === 0 && ObjectId.isValid(id)) {
+          result = await usersCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: { status: status || 'present' } }
+          );
+        }
+        res.json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // ==========================================
     // MEALS ENDPOINTS
     // ==========================================
