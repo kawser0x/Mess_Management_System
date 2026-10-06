@@ -31,13 +31,30 @@ export default function ManagerPage() {
         const finances = financesRes?.ok ? await financesRes.json() : [];
         const notices = noticesRes?.ok ? await noticesRes.json() : [];
 
-        // Calculate total expenses
-        const totalExpenses = finances.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+        // Calculate total meals
+        let totalMealsCount = 0;
+        meals.forEach(day => {
+          if (day.records && Array.isArray(day.records)) {
+            day.records.forEach(r => {
+              totalMealsCount += (parseFloat(r.breakfast) || 0) + (parseFloat(r.lunch) || 0) + (parseFloat(r.dinner) || 0);
+            });
+          }
+        });
+
+        const totalIncome = finances
+          .filter(f => f.type === "income")
+          .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+          
+        const totalExpenses = finances
+          .filter(f => f.type === "expense" || !f.type)
+          .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+          
+        const netBalance = totalIncome - totalExpenses;
 
         setStats({
           members: members.length,
-          meals: meals.length,
-          expenses: totalExpenses,
+          meals: totalMealsCount,
+          balance: netBalance,
           notices: notices.length,
         });
       } catch (error) {
@@ -70,8 +87,8 @@ export default function ManagerPage() {
       link: "/manager/meals",
     },
     {
-      title: "Total Expenses",
-      value: `৳${stats.expenses.toLocaleString()}`,
+      title: "Mess Balance",
+      value: `৳${stats.balance?.toLocaleString() || 0}`,
       icon: Wallet,
       color: "from-amber-400 to-orange-500",
       bgLight: "bg-amber-50 dark:bg-amber-500/10",

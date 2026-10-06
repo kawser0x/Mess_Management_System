@@ -108,6 +108,42 @@ async function run() {
       }
     });
 
+    app.put('/api/meals/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        const updatedMeal = req.body;
+        delete updatedMeal._id;
+        
+        let result = await mealsCollection.updateOne(
+          { _id: id },
+          { $set: updatedMeal }
+        );
+
+        if (result.matchedCount === 0 && ObjectId.isValid(id)) {
+          result = await mealsCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updatedMeal }
+          );
+        }
+        res.json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    app.delete('/api/meals/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        let result = await mealsCollection.deleteOne({ _id: id });
+        if (result.deletedCount === 0 && ObjectId.isValid(id)) {
+          result = await mealsCollection.deleteOne({ _id: new ObjectId(id) });
+        }
+        res.json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     // ==========================================
     // FINANCES ENDPOINTS
     // ==========================================
@@ -126,6 +162,19 @@ async function run() {
         newRecord.createdAt = new Date();
         const result = await financesCollection.insertOne(newRecord);
         res.status(201).json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    app.delete('/api/finances/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        let result = await financesCollection.deleteOne({ _id: id });
+        if (result.deletedCount === 0 && ObjectId.isValid(id)) {
+          result = await financesCollection.deleteOne({ _id: new ObjectId(id) });
+        }
+        res.json(result);
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
