@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Button } from "@heroui/react";
 import {
   Mail,
@@ -15,6 +16,7 @@ import {
   UserPlus,
   ArrowRight,
 } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 
 function GoogleIcon() {
   return (
@@ -40,6 +42,7 @@ function GoogleIcon() {
 }
 
 export default function SignUpPage() {
+  const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -51,7 +54,7 @@ export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -69,14 +72,38 @@ export default function SignUpPage() {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const { data, error: authError } = await authClient.signUp.email({
+        email,
+        password,
+        name: fullName,
+        phone,
+        roomNo,
+        callbackURL: "/",
+      });
+
+      if (authError) {
+        setError(authError.message || "Registration failed. Please try again.");
+      } else {
+        router.push("/");
+        router.refresh();
+      }
+    } catch (err) {
+      setError(err?.message || "An unexpected error occurred.");
+    } finally {
       setIsLoading(false);
-      alert(`Member account created for ${fullName}!`);
-    }, 800);
+    }
   };
 
-  const handleGoogleSignUp = () => {
-    alert("Google Sign-Up initialized!");
+  const handleGoogleSignUp = async () => {
+    try {
+      await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/",
+      });
+    } catch (err) {
+      setError(err?.message || "Failed to initiate Google sign up.");
+    }
   };
 
   const inputClass =

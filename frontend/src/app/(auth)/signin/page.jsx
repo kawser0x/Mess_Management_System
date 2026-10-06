@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Button } from "@heroui/react";
 import { Mail, Lock, Eye, EyeOff, LogIn, ArrowRight } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 
 function GoogleIcon() {
   return (
@@ -30,6 +32,7 @@ function GoogleIcon() {
 }
 
 export default function SignInPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -37,7 +40,7 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -47,18 +50,35 @@ export default function SignInPage() {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      if (email === "11star@gmail.com" && password === "11star@#") {
-        alert("Signed in successfully as Manager!");
+    try {
+      const { data, error: authError } = await authClient.signIn.email({
+        email,
+        password,
+        callbackURL: "/",
+      });
+
+      if (authError) {
+        setError(authError.message || "Invalid credentials. Please try again.");
       } else {
-        alert(`Signed in successfully as Member: ${email}`);
+        router.push("/");
+        router.refresh();
       }
-    }, 800);
+    } catch (err) {
+      setError(err?.message || "An unexpected error occurred.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleGoogleSignIn = () => {
-    alert("Google Sign-In initialized!");
+  const handleGoogleSignIn = async () => {
+    try {
+      await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/",
+      });
+    } catch (err) {
+      setError(err?.message || "Failed to initiate Google sign in.");
+    }
   };
 
   const inputClass =
