@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 
 export default function FinancesManagementPage() {
   const [finances, setFinances] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState(null);
@@ -14,6 +15,7 @@ export default function FinancesManagementPage() {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
     description: "",
+    doneBy: "",
     amount: "",
     type: "expense", // could be 'income' if they collect money
   });
@@ -22,12 +24,19 @@ export default function FinancesManagementPage() {
     setLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiUrl}/api/finances`);
-      if (res.ok) {
-        const data = await res.json();
+      const [resFin, resPay] = await Promise.all([
+        fetch(`${apiUrl}/api/finances`),
+        fetch(`${apiUrl}/api/payments`)
+      ]);
+      if (resFin.ok) {
+        const data = await resFin.json();
         // Sort by date descending
         data.sort((a, b) => new Date(b.date) - new Date(a.date));
         setFinances(data);
+      }
+      if (resPay.ok) {
+        const pData = await resPay.json();
+        setPayments(pData);
       }
     } catch (error) {
       toast.error("Failed to fetch records.");
@@ -46,7 +55,7 @@ export default function FinancesManagementPage() {
 
   const handleAddRecord = async (e) => {
     e.preventDefault();
-    if (!formData.description || !formData.amount) {
+    if (!formData.description || !formData.amount || !formData.doneBy) {
       toast.warning("Please fill in all fields.");
       return;
     }
@@ -67,7 +76,7 @@ export default function FinancesManagementPage() {
 
       if (res.ok) {
         toast.success("Record added successfully!");
-        setFormData({ ...formData, description: "", amount: "" });
+        setFormData({ ...formData, description: "", doneBy: "", amount: "" });
         fetchFinances(); // Refresh list
       } else {
         toast.error("Failed to add record.");
@@ -106,9 +115,14 @@ export default function FinancesManagementPage() {
     .filter(f => f.type === "expense")
     .reduce((sum, curr) => sum + (Number(curr.amount) || 0), 0);
 
-  const totalIncome = finances
+  const totalFinanceIncome = finances
     .filter(f => f.type === "income")
     .reduce((sum, curr) => sum + (Number(curr.amount) || 0), 0);
+
+  const totalPayments = payments
+    .reduce((sum, curr) => sum + (Number(curr.amount) || 0), 0);
+
+  const totalIncome = totalFinanceIncome + totalPayments;
 
   const balance = totalIncome - totalExpenses;
 
@@ -167,18 +181,7 @@ export default function FinancesManagementPage() {
           </h3>
           
           <form onSubmit={handleAddRecord} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Type</label>
-              <select 
-                name="type"
-                value={formData.type}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm"
-              >
-                <option value="expense">Expense (Bazaar, Bills)</option>
-                <option value="income">Income (Deposits, Fees)</option>
-              </select>
-            </div>
+
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Date</label>
               <input 
@@ -198,6 +201,18 @@ export default function FinancesManagementPage() {
                 placeholder="e.g., Daily Bazaar"
                 required
                 value={formData.description}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Who did this work?</label>
+              <input 
+                type="text" 
+                name="doneBy"
+                placeholder="e.g., John Doe"
+                required
+                value={formData.doneBy}
                 onChange={handleChange}
                 className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm"
               />
@@ -235,6 +250,7 @@ export default function FinancesManagementPage() {
                 <tr className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800">
                   <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Description</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Done By</th>
                   <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Amount</th>
                   <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-center">Action</th>
                 </tr>
@@ -261,6 +277,9 @@ export default function FinancesManagementPage() {
                       </td>
                       <td className="px-6 py-4 text-zinc-900 dark:text-zinc-100 font-medium">
                         {record.description}
+                      </td>
+                      <td className="px-6 py-4 text-zinc-500 dark:text-zinc-400 font-medium">
+                        {record.doneBy || "N/A"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <span className={`font-bold ${record.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>

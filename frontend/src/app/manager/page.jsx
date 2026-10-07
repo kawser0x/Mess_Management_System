@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Users, Utensils, Wallet, Bell, ArrowRight, Activity, TrendingUp, Clock } from "lucide-react";
 import Link from "next/link";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 export default function ManagerPage() {
   const [stats, setStats] = useState({
@@ -10,8 +11,11 @@ export default function ManagerPage() {
     meals: 0,
     expenses: 0,
     notices: 0,
+    mealRate: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [memberMeals, setMemberMeals] = useState([]);
+  const [paymentStats, setPaymentStats] = useState([]);
 
   useEffect(() => {
     async function fetchDashboardStats() {
@@ -19,17 +23,19 @@ export default function ManagerPage() {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
         
         // Fetch all data in parallel
-        const [membersRes, mealsRes, financesRes, noticesRes] = await Promise.all([
+        const [membersRes, mealsRes, financesRes, noticesRes, paymentsRes] = await Promise.all([
           fetch(`${apiUrl}/api/members`).catch(() => null),
           fetch(`${apiUrl}/api/meals`).catch(() => null),
           fetch(`${apiUrl}/api/finances`).catch(() => null),
           fetch(`${apiUrl}/api/notices`).catch(() => null),
+          fetch(`${apiUrl}/api/payments`).catch(() => null),
         ]);
 
         const members = membersRes?.ok ? await membersRes.json() : [];
         const meals = mealsRes?.ok ? await mealsRes.json() : [];
         const finances = financesRes?.ok ? await financesRes.json() : [];
         const notices = noticesRes?.ok ? await noticesRes.json() : [];
+        const payments = paymentsRes?.ok ? await paymentsRes.json() : [];
 
         // Calculate total meals
         let totalMealsCount = 0;
@@ -41,9 +47,30 @@ export default function ManagerPage() {
           }
         });
 
-        const totalIncome = finances
+        // Compute total meals per member across all days
+        let memberTotals = {};
+        meals.forEach(day => {
+          if (day.records && Array.isArray(day.records)) {
+            day.records.forEach(r => {
+              const mid = r.memberId;
+              if (!memberTotals[mid]) {
+                const member = members.find(m => m._id.toString() === mid);
+                memberTotals[mid] = { name: member?.name || mid, total: 0 };
+              }
+              memberTotals[mid].total += (parseFloat(r.breakfast) || 0) + (parseFloat(r.lunch) || 0) + (parseFloat(r.dinner) || 0);
+            });
+          }
+        });
+        setMemberMeals(Object.values(memberTotals));
+
+        const totalFinanceIncome = finances
           .filter(f => f.type === "income")
           .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+          
+        const totalPaymentsIncome = payments
+          .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+        const totalIncome = totalFinanceIncome + totalPaymentsIncome;
           
         const totalExpenses = finances
           .filter(f => f.type === "expense" || !f.type)
@@ -51,11 +78,30 @@ export default function ManagerPage() {
           
         const netBalance = totalIncome - totalExpenses;
 
+        // Compute daily payment trends
+        const financesByDate = {};
+        finances.forEach(f => {
+          const d = f.date || (f.createdAt ? new Date(f.createdAt).toISOString().split('T')[0] : 'Unknown');
+          if (!financesByDate[d]) financesByDate[d] = { date: d, income: 0, expense: 0 };
+          if (f.type === "income") financesByDate[d].income += (Number(f.amount) || 0);
+          else financesByDate[d].expense += (Number(f.amount) || 0);
+        });
+        payments.forEach(p => {
+          const d = p.date || (p.createdAt ? new Date(p.createdAt).toISOString().split('T')[0] : 'Unknown');
+          if (!financesByDate[d]) financesByDate[d] = { date: d, income: 0, expense: 0 };
+          financesByDate[d].income += (Number(p.amount) || 0);
+        });
+        const paymentTrend = Object.values(financesByDate)
+          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .slice(-7);
+        setPaymentStats(paymentTrend);
+
         setStats({
           members: members.length,
           meals: totalMealsCount,
           balance: netBalance,
           notices: notices.length,
+          mealRate: totalMealsCount > 0 ? (totalExpenses / totalMealsCount).toFixed(2) : 0,
         });
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
@@ -104,6 +150,15 @@ export default function ManagerPage() {
       textColor: "text-purple-500",
       link: "/manager/notices",
     },
+    {
+      title: "Current Meal Rate",
+      value: `৳${stats.mealRate}`,
+      icon: TrendingUp,
+      color: "from-rose-400 to-red-500",
+      bgLight: "bg-rose-50 dark:bg-rose-500/10",
+      textColor: "text-rose-500",
+      link: "/manager/meals",
+    },
   ];
 
   return (
@@ -120,7 +175,7 @@ export default function ManagerPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         {statCards.map((card, idx) => (
           <div
             key={idx}
@@ -156,6 +211,39 @@ export default function ManagerPage() {
           </div>
         ))}
       </div>
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+              {/* Member Total Meals Bar Chart */}
+              <div className="col-span-1 lg:col-span-2 bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">Member Total Meals</h2>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={memberMeals} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="total" fill="#6366F1" name="Total Meals" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Payments Trend Bar Chart */}
+              <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">Payments Trend (Last 7 Days)</h2>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={paymentStats} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="income" fill="#34D399" name="Income" />
+                    <Bar dataKey="expense" fill="#F87171" name="Expense" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+
+            </div>
 
       {/* Quick Actions & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

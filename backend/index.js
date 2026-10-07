@@ -26,6 +26,7 @@ async function run() {
     const noticesCollection = db.collection('notices');
     const reviewsCollection = db.collection('reviews');
     const paymentsCollection = db.collection('payments');
+    const archivesCollection = db.collection('archives');
 
     // ==========================================
     // USERS / MEMBERS ENDPOINTS
@@ -330,6 +331,76 @@ async function run() {
         newReview.createdAt = new Date();
         const result = await reviewsCollection.insertOne(newReview);
         res.status(201).json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // ==========================================
+    // ARCHIVE & MONTH-END ENDPOINTS
+    // ==========================================
+    app.post('/api/months/close', async (req, res) => {
+      try {
+        const { month, reportData, mealRate, totalMeals, totalExpenses } = req.body;
+        
+        // 1. Save to archives collection
+        await archivesCollection.insertOne({
+          month,
+          reportData,
+          mealRate,
+          totalMeals,
+          totalExpenses,
+          closedAt: new Date()
+        });
+
+        // 2. Prepare carry forward balances
+        const today = new Date();
+        const nextMonthPrefix = today.toISOString().split('T')[0];
+        
+        const carryForwards = reportData.map(member => {
+          let amount = 0;
+          let type = 'deposit';
+          
+          if (member.returnAmount > 0) {
+            amount = member.returnAmount; // Positive balance carry forward
+            type = 'deposit';
+          } else if (member.dueAmount > 0) {
+            amount = member.dueAmount; // Negative balance carry forward
+            type = 'due_pay';
+          }
+          
+          if (amount > 0) {
+            return {
+              memberId: member.id,
+              memberName: member.name,
+              amount: amount,
+              description: `Balance Carry Forward from ${month}`,
+              type: type,
+              date: nextMonthPrefix
+            };
+          }
+          return null;
+        }).filter(Boolean);
+
+        // 3. Move current data to archive collections and clear active collections
+        const meals = await mealsCollection.find().toArray();
+        if (meals.length > 0) await db.collection('archived_meals').insertMany(meals);
+        await mealsCollection.deleteMany({});
+
+        const finances = await financesCollection.find().toArray();
+        if (finances.length > 0) await db.collection('archived_finances').insertMany(finances);
+        await financesCollection.deleteMany({});
+
+        const payments = await paymentsCollection.find().toArray();
+        if (payments.length > 0) await db.collection('archived_payments').insertMany(payments);
+        await paymentsCollection.deleteMany({});
+
+        // 4. Insert carry forwards into new empty payments collection
+        if (carryForwards.length > 0) {
+          await paymentsCollection.insertMany(carryForwards);
+        }
+
+        res.status(200).json({ message: "Month closed successfully, balances carried forward." });
       } catch (error) {
         res.status(500).json({ error: error.message });
       }

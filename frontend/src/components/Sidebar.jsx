@@ -11,6 +11,7 @@ import {
   Settings,
   CreditCard,
   User,
+  FileText,
 } from "lucide-react";
 
 export default function Sidebar({ role }) {
@@ -22,6 +23,7 @@ export default function Sidebar({ role }) {
     { label: "Meal Chart", href: "/manager/meals", icon: Utensils },
     { label: "Finances", href: "/manager/finances", icon: PieChart },
     { label: "Payments", href: "/manager/payments", icon: CreditCard },
+    { label: "Report", href: "/manager/report", icon: FileText },
     { label: "Notices", href: "/manager/notices", icon: MessageSquare },
   ];
 
@@ -43,7 +45,7 @@ export default function Sidebar({ role }) {
   const isBottomActive = pathname === bottomLink.href;
 
   return (
-    <aside className="w-64 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex-shrink-0 flex flex-col h-[calc(100vh-4rem)] sticky top-16 hidden md:flex">
+    <aside className="w-64 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex-shrink-0 flex flex-col h-[calc(100vh-4rem)] sticky top-16 hidden md:flex print:hidden">
       <div className="p-4 flex-1 overflow-y-auto space-y-1">
         {mainLinks.map(({ label, href, icon: Icon }) => {
           const isActive = pathname === href;

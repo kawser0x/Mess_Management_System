@@ -16,6 +16,7 @@ export default function PaymentsPage() {
   const [selectedMember, setSelectedMember] = useState("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
+  const [paymentType, setPaymentType] = useState("deposit");
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
 
   const fetchInitialData = async () => {
@@ -63,6 +64,7 @@ export default function PaymentsPage() {
         memberName: memberInfo?.name || "Unknown",
         amount: parseFloat(amount),
         description: description || "Deposit",
+        type: paymentType,
         date: paymentDate
       };
 
@@ -190,6 +192,7 @@ export default function PaymentsPage() {
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl outline-none text-zinc-900 dark:text-zinc-100 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all font-bold"
@@ -213,6 +216,20 @@ export default function PaymentsPage() {
                     required
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">Type</label>
+                <select
+                  value={paymentType}
+                  onChange={(e) => setPaymentType(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl outline-none text-zinc-900 dark:text-zinc-100 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                  required
+                >
+                  <option value="deposit">Deposit</option>
+                  <option value="rent">Rent</option>
+                  <option value="due_pay">Due Pay</option>
+                </select>
               </div>
 
               <div>
